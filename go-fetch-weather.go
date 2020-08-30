@@ -51,7 +51,7 @@ func fetchWeather(key string) weather {
 	currentTime := time.Now()
 	yesterday := currentTime.Format("2006-01-02")
 	today := currentTime.Format("2006-01-02")
-  fmt.Println("Current date: ", today)
+	fmt.Println("Current date: ", today)
 
 	tr := &http.Transport{
 		MaxIdleConns:       10,
@@ -72,7 +72,7 @@ func fetchWeather(key string) weather {
 	res, err := client.Do(req)
 
 	body, err := ioutil.ReadAll(res.Body)
- 	fmt.Println(body)
+	fmt.Println(body)
 
 	if err != nil {
 		panic(err.Error())
@@ -95,7 +95,7 @@ func main() {
 	} else {
 		data := fetchWeather(key)
 
-		lastEntry := data.Data[len(data.Data) - 1]
+		lastEntry := data.Data[len(data.Data)-1]
 
 		fmt.Println()
 		fmt.Printf("Latest Time: %v\n", lastEntry.Time)
