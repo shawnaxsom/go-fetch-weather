@@ -1,14 +1,14 @@
 package main
 
 import (
-	"os"
-	"log"
+	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
-	"net/http"
-	"time"
-	"encoding/json"
 	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"time"
 )
 
 type weather struct {
@@ -37,14 +37,14 @@ type weather struct {
 // return the value of the key
 func environmentVariable(key string) string {
 
-  // load .env file
-  err := godotenv.Load(".env")
+	// load .env file
+	err := godotenv.Load(".env")
 
-  if err != nil {
-    log.Fatalf("Error loading .env file")
-  }
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
 
-  return os.Getenv(key)
+	return os.Getenv(key)
 }
 
 func fetchWeather(key string) {
@@ -54,28 +54,27 @@ func fetchWeather(key string) {
 		DisableCompression: true,
 	}
 	client := &http.Client{Transport: tr}
-	req, err := http.NewRequest("GET", "https://api.meteostat.net/v2/stations/hourly" +
+	req, err := http.NewRequest("GET", "https://api.meteostat.net/v2/stations/hourly"+
 		"?station=10637&start=2020-02-01&end=2020-02-04", nil)
 
-  if err != nil {
-    log.Fatalf("Error requesting Meteostat data")
-  }
+	if err != nil {
+		log.Fatalf("Error requesting Meteostat data")
+	}
 
 	req.Header.Add("x-api-key", key)
 	res, err := client.Do(req)
 
-	fmt.Println("Response")
-	fmt.Println(res)
-
 	body, err := ioutil.ReadAll(res.Body)
 
 	if err != nil {
-			panic(err.Error())
+		panic(err.Error())
 	}
 
 	var data weather
 	json.Unmarshal(body, &data)
-	fmt.Printf("Results: %v\n", data)
+
+	fmt.Printf("Results: %v\n", data.Meta.Source)
+
 	os.Exit(0)
 }
 
@@ -85,10 +84,8 @@ func main() {
 	godotenv.Load(".env")
 
 	if key := environmentVariable("METEOSTAT_API_KEY"); key == "" {
-		fmt.Println("Please enter a METEOSTAT_API_KEY in a .env file, or use an environment variable")
+		log.Fatalf("Please enter a METEOSTAT_API_KEY in a .env file, or use an environment variable")
 	} else {
-		fmt.Printf("Found key: %v\n", key)
-
 		fetchWeather(key)
 	}
 }
