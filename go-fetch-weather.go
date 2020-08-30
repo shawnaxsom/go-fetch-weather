@@ -47,15 +47,22 @@ func environmentVariable(key string) string {
 	return os.Getenv(key)
 }
 
-func fetchWeather(key string) {
+func fetchWeather(key string) weather {
+	currentTime := time.Now()
+	yesterday := currentTime.Format("2006-01-02")
+	today := currentTime.Format("2006-01-02")
+  fmt.Println("Current date: ", today)
+
 	tr := &http.Transport{
 		MaxIdleConns:       10,
 		IdleConnTimeout:    30 * time.Second,
 		DisableCompression: true,
 	}
 	client := &http.Client{Transport: tr}
-	req, err := http.NewRequest("GET", "https://api.meteostat.net/v2/stations/hourly"+
-		"?station=10637&start=2020-02-01&end=2020-02-04", nil)
+	url := fmt.Sprintf("https://api.meteostat.net/v2/stations/hourly"+
+		"?station=10637&start=%v&end=%v", yesterday, today)
+	fmt.Println(url)
+	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
 		log.Fatalf("Error requesting Meteostat data")
@@ -65,6 +72,7 @@ func fetchWeather(key string) {
 	res, err := client.Do(req)
 
 	body, err := ioutil.ReadAll(res.Body)
+ 	fmt.Println(body)
 
 	if err != nil {
 		panic(err.Error())
@@ -72,20 +80,26 @@ func fetchWeather(key string) {
 
 	var data weather
 	json.Unmarshal(body, &data)
+	fmt.Printf("Results: %v\n", data)
+	b, err := json.MarshalIndent(data, "", "  ")
+	fmt.Println(string(b))
 
-	fmt.Printf("Results: %v\n", data.Meta.Source)
-
-	os.Exit(0)
+	return data
 }
 
 func main() {
-	fmt.Println("Hello world!")
-
 	godotenv.Load(".env")
 
 	if key := environmentVariable("METEOSTAT_API_KEY"); key == "" {
 		log.Fatalf("Please enter a METEOSTAT_API_KEY in a .env file, or use an environment variable")
 	} else {
-		fetchWeather(key)
+		data := fetchWeather(key)
+
+		lastEntry := data.Data[len(data.Data) - 1]
+
+		fmt.Println()
+		fmt.Printf("Latest Time: %v\n", lastEntry.Time)
+		fmt.Printf("Latest Temp: %v\n", lastEntry.Temp)
+		fmt.Printf("Latest Prcp: %v\n", lastEntry.Prcp)
 	}
 }
