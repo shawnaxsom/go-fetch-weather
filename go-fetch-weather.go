@@ -11,26 +11,28 @@ import (
 	"time"
 )
 
+type weatherData []struct {
+	Time string  `json:"time"`
+	Temp int     `json:"temp"`
+	Dwpt float64 `json:"dwpt"`
+	Rhum int     `json:"rhum"`
+	Prcp int     `json:"prcp"`
+	Snow int     `json:"snow"`
+	Wdir int     `json:"wdir"`
+	Wspd float64 `json:"wspd"`
+	Wpgt int     `json:"wpgt"`
+	Pres float64 `json:"pres"`
+	Tsun int     `json:"tsun"`
+	Coco int     `json:"coco"`
+}
+
 type weather struct {
 	Meta struct {
 		Source    string  `json:"source"`
 		ExecTime  float64 `json:"exec_time"`
 		Generated string  `json:"generated"`
 	} `json:"meta"`
-	Data []struct {
-		Time string  `json:"time"`
-		Temp int     `json:"temp"`
-		Dwpt float64 `json:"dwpt"`
-		Rhum int     `json:"rhum"`
-		Prcp int     `json:"prcp"`
-		Snow int     `json:"snow"`
-		Wdir int     `json:"wdir"`
-		Wspd float64 `json:"wspd"`
-		Wpgt int     `json:"wpgt"`
-		Pres float64 `json:"pres"`
-		Tsun int     `json:"tsun"`
-		Coco int     `json:"coco"`
-	} `json:"data"`
+	Data weatherData `json:"data"`
 }
 
 type stations struct {
@@ -133,11 +135,19 @@ func fetchWeather(key string, stationId string) weather {
 
 	var data weather
 	json.Unmarshal(body, &data)
-	fmt.Printf("Results: %v\n", data)
-	b, err := json.MarshalIndent(data, "", "  ")
-	fmt.Println(string(b))
-
 	return data
+}
+
+func filterResultsWithInfo(data weatherData) weatherData {
+	// Meteostat includes all times of day, even those that haven't occurred yet.
+	// Later times have all zeros for data besides time.
+	var filteredData weatherData
+	for i := range data {
+		if data[i].Temp != 0 && data[i].Wdir != 0 && data[i].Wspd != 0 {
+			filteredData = append(filteredData, data[i])
+		}
+	}
+	return filteredData
 }
 
 func main() {
@@ -148,12 +158,21 @@ func main() {
 	} else {
 		stationData := findStation(key, "Indianapolis")
 		data := fetchWeather(key, stationData.Data[0].ID)
+		filteredData := filterResultsWithInfo(data.Data)
 
-		lastEntry := data.Data[len(data.Data)-1]
+		b, err := json.MarshalIndent(filteredData, "", "  ")
+		if err != nil {
+			panic(err.Error())
+		}
+		fmt.Println(string(b))
+
+		lastEntry := filteredData[len(filteredData)-1]
 
 		fmt.Println()
 		fmt.Printf("Latest Time: %v\n", lastEntry.Time)
-		fmt.Printf("Latest Temp: %v\n", lastEntry.Temp)
+		fmt.Printf("Latest Temp (C): %v\n", lastEntry.Temp)
+		fahrenheit := float64(lastEntry.Temp)*(9.0/5.0) + 32
+		fmt.Printf("Latest Temp (F): %v\n", fahrenheit)
 		fmt.Printf("Latest Prcp: %v\n", lastEntry.Prcp)
 	}
 }
