@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/joho/godotenv"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -81,7 +83,7 @@ var tr *http.Transport = &http.Transport{
 var client *http.Client = &http.Client{Transport: tr}
 
 func findStation(key string, query string) stations {
-	url := fmt.Sprintf("https://api.meteostat.net/v2/stations/search?query=%v", query)
+	url := fmt.Sprintf("https://api.meteostat.net/v2/stations/search?query=%v", strings.Replace(query, " ", "%20", -1))
 	fmt.Println(url)
 	req, err := http.NewRequest("GET", url, nil)
 
@@ -93,7 +95,7 @@ func findStation(key string, query string) stations {
 	res, err := client.Do(req)
 
 	body, err := ioutil.ReadAll(res.Body)
-	fmt.Println(body)
+	// fmt.Println(body)
 
 	if err != nil {
 		panic(err.Error())
@@ -101,9 +103,9 @@ func findStation(key string, query string) stations {
 
 	var data stations
 	json.Unmarshal(body, &data)
-	fmt.Printf("Results: %v\n", data)
-	b, err := json.MarshalIndent(data, "", "  ")
-	fmt.Println(string(b))
+	// fmt.Printf("Results: %v\n", data)
+	// b, err := json.MarshalIndent(data, "", "  ")
+	// fmt.Println(string(b))
 
 	return data
 }
@@ -127,7 +129,7 @@ func fetchWeather(key string, stationId string) weather {
 	res, err := client.Do(req)
 
 	body, err := ioutil.ReadAll(res.Body)
-	fmt.Println(body)
+	// fmt.Println(body)
 
 	if err != nil {
 		panic(err.Error())
@@ -147,28 +149,39 @@ func filterResultsWithInfo(data weatherData) weatherData {
 			filteredData = append(filteredData, data[i])
 		}
 	}
-	return filteredData
+
+	if len(filteredData) > 0 {
+		return filteredData
+	}
+
+	return data
 }
 
 func main() {
+	stationName := flag.String("station", "Indianapolis", "Name of weather station to search for and retrieve weather from")
+
+	flag.Parse()
+
 	godotenv.Load(".env")
 
 	if key := environmentVariable("METEOSTAT_API_KEY"); key == "" {
 		log.Fatalf("Please enter a METEOSTAT_API_KEY in a .env file, or use an environment variable")
 	} else {
-		stationData := findStation(key, "Indianapolis")
+		stationData := findStation(key, *stationName)
+		// s, _ := json.MarshalIndent(stationData, "", "\t");
+		// fmt.Print(string(s))
+		fmt.Println("Station:", stationData.Data[0].Name.En)
 		data := fetchWeather(key, stationData.Data[0].ID)
 		filteredData := filterResultsWithInfo(data.Data)
 
-		b, err := json.MarshalIndent(filteredData, "", "  ")
-		if err != nil {
-			panic(err.Error())
-		}
-		fmt.Println(string(b))
+		// b, err := json.MarshalIndent(filteredData, "", "  ")
+		// if err != nil {
+		// 	panic(err.Error())
+		// }
+		// fmt.Println(string(b))
 
 		lastEntry := filteredData[len(filteredData)-1]
 
-		fmt.Println()
 		fmt.Printf("Latest Time: %v\n", lastEntry.Time)
 		fmt.Printf("Latest Temp (C): %v\n", lastEntry.Temp)
 		fahrenheit := float64(lastEntry.Temp)*(9.0/5.0) + 32
